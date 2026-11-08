@@ -3,17 +3,17 @@
 Network and Information Security (CT-486), Complex Computing Problem (CCP).
 
 ## Files
-|File                 | Purpose                                                                                     |
+File|Purpose|
 
-`trilayer_cipher.py` | Encryption / decryption (Affine -> Vigenère -> Hill 2x2) and a Shift-cipher baseline        |
+`trilayer_cipher.py`|Encryption / decryption (Affine -> Vigenère -> Hill 2x2) and a Shift-cipher baseline|
 
-`attack.py`          | Attack A (ciphertext-only frequency analysis) and Attack B (known plaintext)                |
+`attack.py`|Attack A (ciphertext-only frequency analysis) and Attack B (known plaintext)|
 
-`benchmark.py`       | Random-key success rates, timings, Shift comparison -> `results.json`                       |
+`benchmark.py`|Random-key success rates, timings, Shift comparison -> `results.json`|
 
-`make_figures.py`    | Draws the report figures from `results.json`                                                |
+`make_figures.py`|Draws the report figures from `results.json`|
 
-`corpus.txt`         | English text (first 70 % trains the attacker's bigram model, last 30 % gives test messages) |
+`corpus.txt`|English text (first 70 % trains the attacker's bigram model, last 30 % gives test messages)|
 
 ## Requirements
 Python 3.9+ and `numpy`. `matplotlib` is only needed for `make_figures.py`.
