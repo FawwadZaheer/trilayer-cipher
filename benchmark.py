@@ -1,8 +1,3 @@
-"""
-Benchmarks for the TriLayer cipher v2: attack success rates, timings, comparison with the Shift cipher.
-Every trial uses a fresh RANDOM key and a random slice of text the attacker's models never saw.
-Run:  python3 benchmark.py        (about 2-3 minutes)  -> prints tables, writes results.json
-"""
 import json, random, time
 from math import gcd
 import numpy as np
@@ -13,8 +8,8 @@ SEED = 2026
 rng = random.Random(SEED)
 text = clean(open("corpus.txt", errors="ignore").read())
 cut = int(len(text) * 0.7)
-BG = load_bigram_model(text[:cut])           # attacker's English model: first 70 % of the corpus
-TEST = text[cut:]                            # test messages: last 30 % (never seen by the attacker)
+BG = load_bigram_model(text[:cut])          
+TEST = text[cut:]                           
 UNITS = [x for x in range(1, 26) if gcd(x, 26) == 1]
 
 
@@ -41,7 +36,6 @@ def ic(t):
 
 
 res = {}
-# ------------------------------------------------------------ 0. correctness
 ok = 0
 for _ in range(300):
     k = random_key(); p = msg(rng.randint(1, 200)); p += "X" if len(p) % 2 else ""
@@ -49,14 +43,12 @@ for _ in range(300):
 res["roundtrip"] = f"{ok}/300"
 print("round-trip tests:", res["roundtrip"])
 
-# ------------------------------------------------------------ 1. flat statistics
 p = msg(4000); k = random_key(); c = encrypt(p, **k)
 res["ic"] = {"english_theory": float((FREQ ** 2).sum()), "plaintext": ic(p), "ciphertext": ic(c), "random_26": 1 / 26}
 res["freq_plain"] = (np.bincount(to_arr(p), minlength=26) / len(p)).tolist()
 res["freq_cipher"] = (np.bincount(to_arr(c), minlength=26) / len(c)).tolist()
 print("IC:", {a: round(b, 4) for a, b in res["ic"].items()})
 
-# ------------------------------------------------------------ 2. attack A: frequency analysis
 print("\nATTACK A (ciphertext-only frequency analysis), 100 random keys per length")
 resA = []
 for n in (200, 400, 600, 800, 1000, 1500, 2000, 4000):
@@ -70,7 +62,6 @@ for n in (200, 400, 600, 800, 1000, 1500, 2000, 4000):
     print(f"  n={n:5d}  full recovery {full / T:5.0%}   mean letters correct {np.mean(accs):6.1%}   {np.mean(times):.3f}s")
 res["attackA"] = resA
 
-# ------------------------------------------------------------ 3. attack B: known plaintext
 print("\nATTACK B (known plaintext), 200 random keys per crib length, ciphertext 1000 letters")
 resB = []
 for m in (10, 16, 20, 24, 28, 32, 36, 40, 50, 60):
@@ -83,7 +74,6 @@ for m in (10, 16, 20, 24, 28, 32, 36, 40, 50, 60):
     print(f"  crib={m:3d} letters  full recovery {full / T:5.0%}   {np.mean(times) * 1000:.1f} ms")
 res["attackB"] = resB
 
-# per key length: smallest crib that always works (formula 2(P+2))
 perL = []
 for L in range(10, 17):
     P = L // gcd(L, 2)
@@ -99,7 +89,6 @@ for L in range(10, 17):
     print("  ", row)
 res["perL"] = perL
 
-# ------------------------------------------------------------ 4. timing vs shift cipher
 print("\nTIMING (pure Python, best of 3), seconds")
 timing = []
 for n in (1_000, 10_000, 100_000, 1_000_000):
@@ -116,7 +105,6 @@ for n in (1_000, 10_000, 100_000, 1_000_000):
     print(f"  n={n:8d}  TriLayer enc {te:.4f} dec {td:.4f} | Shift enc {se:.4f} dec {sd:.4f} | ratio {te / se:.1f}x")
 res["timing"] = timing
 
-# ------------------------------------------------------------ 5. brute-force the shift cipher for comparison
 pt = msg(1000); sct = shift_enc(pt, 17)
 t0 = time.perf_counter()
 best_k = max(range(26), key=lambda k: float(np.log(FREQ)[to_arr(shift_dec(sct, k))].sum()))
