@@ -1,30 +1,9 @@
-"""
-TriLayer Cipher v2  --  Affine + Vigenere + Hill (2x2)
-Network and Information Security (CT-486) - CCP: Design and Break a Custom Cipher
-
-All three layers are classical ciphers taught in the course. Alphabet: the full A-Z (26 letters).
-
-Encryption : plaintext -> [1] Affine -> [2] Vigenere -> [3] Hill 2x2 -> ciphertext
-Decryption : the three layers inverted in reverse order (Hill^-1, Vigenere^-1, Affine^-1).
-
-Key  = (a, b, vig_key, hill_key)
-  a        : affine multiplier, gcd(a, 26) = 1           (12 valid values)
-  b        : affine shift, 0..25
-  vig_key  : Vigenere keyword, AT LEAST 10 letters
-  hill_key : 4-letter word -> 2x2 matrix [[k0,k1],[k2,k3]], det must be coprime with 26
-
-Input handling: text is upper-cased and everything except A-Z is removed.
-If the length is odd, one 'X' is appended (Hill works on pairs). Decryption returns the
-padded text, so a trailing X may be padding.
-"""
 from math import gcd
 
 M = 26
 ALPHA = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 MIN_VIG_LEN = 10
 
-
-# ---------------------------------------------------------------- helpers
 def clean(text: str) -> str:
     """Upper-case and keep A-Z only."""
     return "".join(c for c in text.upper() if "A" <= c <= "Z")
@@ -68,8 +47,6 @@ def check_key(a, b, vig_key, hill_key):
         raise ValueError(f"vig_key needs at least {MIN_VIG_LEN} letters")
     hill_matrix(hill_key)
 
-
-# ---------------------------------------------------------------- layer 1: affine
 def affine_enc(t, a, b):
     return "".join(chr(65 + (a * (ord(c) - 65) + b) % M) for c in t)
 
@@ -78,8 +55,6 @@ def affine_dec(t, a, b):
     ai = modinv(a)
     return "".join(chr(65 + (ai * (ord(c) - 65 - b)) % M) for c in t)
 
-
-# ---------------------------------------------------------------- layer 2: vigenere
 def vig_enc(t, key):
     k = [ord(c) - 65 for c in clean(key)]
     L = len(k)
@@ -91,8 +66,6 @@ def vig_dec(t, key):
     L = len(k)
     return "".join(chr(65 + (ord(c) - 65 - k[i % L]) % M) for i, c in enumerate(t))
 
-
-# ---------------------------------------------------------------- layer 3: hill 2x2
 def hill_apply(t, m):
     out = []
     for i in range(0, len(t), 2):
@@ -101,8 +74,6 @@ def hill_apply(t, m):
         out.append(ALPHA[(m[1][0] * x + m[1][1] * y) % M])
     return "".join(out)
 
-
-# ---------------------------------------------------------------- full cipher
 def encrypt(plaintext, a, b, vig_key, hill_key):
     check_key(a, b, vig_key, hill_key)
     t = pad(clean(plaintext))
@@ -117,8 +88,6 @@ def decrypt(ciphertext, a, b, vig_key, hill_key):
     t = vig_dec(t, vig_key)
     return affine_dec(t, a, b)
 
-
-# ---------------------------------------------------------------- baseline for comparison
 def shift_enc(t, k):
     return "".join(chr(65 + (ord(c) - 65 + k) % M) for c in t)
 
@@ -126,8 +95,6 @@ def shift_enc(t, k):
 def shift_dec(t, k):
     return shift_enc(t, -k)
 
-
-# ---------------------------------------------------------------- step-by-step (verbose) versions
 def _wrap(label, text, width=64):
     print(f"    {label}")
     for i in range(0, len(text), width):
