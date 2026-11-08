@@ -25,7 +25,6 @@ a2.set_xlabel("Known plaintext (letters)"); a2.set_title("Attack B: known plaint
 for a in (a1, a2): a.spines[["top", "right"]].set_visible(False); a.set_ylim(-3, 103)
 plt.tight_layout(); plt.savefig("fig_success.png", dpi=200); plt.close()
 
-# worked example, each layer
 KEY = dict(a=7, b=11, vig_key="NETWORKSECURITY", hill_key="HILL")
 msg = "Meet me at the server room at midnight and bring the firewall logs"
 t0 = pad(clean(msg)); t1 = affine_enc(t0, 7, 11); t2 = vig_enc(t1, KEY["vig_key"]); t3 = hill_apply(t2, hill_matrix("HILL"))
