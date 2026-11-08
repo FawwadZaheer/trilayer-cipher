@@ -1,29 +1,3 @@
-"""
-Attacks on the TriLayer Cipher v2 (Affine + Vigenere + Hill 2x2)
-
-Why the cipher breaks.  Affine, Vigenere and Hill are all *linear (affine) maps mod 26*, and a
-composition of affine maps is one affine map.  Writing the plaintext as 2-letter blocks P_j:
-
-        C_j = M' . P_j + u_(j mod P)          (mod 26)
-
-with M' = a*M (a 2x2 matrix) and u_s = M.(b + Vigenere offsets) (a vector).  P is the key period
-measured in blocks (P = L/2 for an even Vigenere key length L, P = L for an odd one).  The 12 x 26
-affine keys, the Vigenere key and the Hill key all collapse into "one matrix + P vectors".
-
-ATTACK A - ciphertext-only FREQUENCY ANALYSIS (no key, no plaintext)
-    Applying one ROW (n0, n1) of M'^-1 to every block gives   x_j = p_(2j or 2j+1) + shift_(j mod P),
-    i.e. a Vigenere-encrypted stream of plain English letters.  So:
-      1. try every primitive row (504 of them) and every period P in 5..24
-      2. solve the Vigenere columns by maximum-likelihood against the English letter-frequency table
-      3. the rows/period that give the best English fit are the true ones
-      4. two possible row orders -> pick by English bigram statistics, then read off the plaintext
-    Work: 504 rows x 20 periods = 10,080 column fits instead of a 2^91 key search.
-
-ATTACK B - KNOWN-PLAINTEXT (attacker knows the first m letters of the message)
-    Blocks that are P apart share the same u, so  C_(j+P) - C_j = M' (P_(j+P) - P_j).  Two
-    independent differences give M' by a 2x2 modular inversion; then u_s = C_s - M' P_s for every
-    class s.  Needs only m >= 2(P + 2) letters.  No statistics are involved.
-"""
 import time
 from itertools import combinations, permutations
 from math import gcd
@@ -32,13 +6,11 @@ import numpy as np
 
 from trilayer_cipher import M, clean, mat_inv
 
-# Standard published English letter frequencies (A..Z, percent) - independent of any corpus.
 ENGLISH_PCT = [8.167, 1.492, 2.782, 4.253, 12.702, 2.228, 2.015, 6.094, 6.966, 0.153, 0.772,
                4.025, 2.406, 6.749, 7.507, 1.929, 0.095, 5.987, 6.327, 9.056, 2.758, 0.978,
                2.360, 0.150, 1.974, 0.074]
 FREQ = np.array(ENGLISH_PCT) / sum(ENGLISH_PCT)
 LOGF = np.log(FREQ)
-# SL[a, w] = log-likelihood that cipher letter a is English letter (a - w), i.e. shifted by w
 SL = np.array([[LOGF[(a - w) % 26] for w in range(26)] for a in range(26)])
 
 
@@ -62,10 +34,9 @@ def bigram_score(text_arr, bg):
 
 
 PRIMITIVE_ROWS = [(n0, n1) for n0 in range(26) for n1 in range(26)
-                  if gcd(gcd(n0, n1), M) == 1]          # 477 rows with gcd(n0, n1, 26) = 1
+                  if gcd(gcd(n0, n1), M) == 1]          
 
 
-# ====================================================================== ATTACK A
 def _hdr(t):
     print("\n" + "-" * 74 + f"\n{t}\n" + "-" * 74)
 
@@ -83,7 +54,7 @@ def frequency_attack(ct, bigram, p_range=range(5, 25), n_top=4, eps=0.02, verbos
     C0, C1 = C[0::2], C[1::2]
     B = len(C0)
     j = np.arange(B)
-    P_list = [P for P in p_range if P * 4 <= B]            # need a few letters per column
+    P_list = [P for P in p_range if P * 4 <= B]            
     if verbose:
         _hdr("ATTACK A, STEP 1: read the ciphertext and cut it into 2-letter blocks")
         print(f"    {len(ct)} letters -> {B} blocks.   first 6 blocks: "
@@ -106,7 +77,7 @@ def frequency_attack(ct, bigram, p_range=range(5, 25), n_top=4, eps=0.02, verbos
         x = (n0 * C0 + n1 * C1) % 26
         for pi, P in enumerate(P_list):
             counts = np.bincount(colidx[P] + x, minlength=P * 26).reshape(P, 26)
-            scores[ri, pi] = (counts @ SL).max(axis=1).sum() / B   # log-lik per letter
+            scores[ri, pi] = (counts @ SL).max(axis=1).sum() / B  
 
     top2 = np.sort(scores, axis=0)[-2:, :].sum(axis=0)
     P_star = next(P_list[i] for i in range(len(P_list)) if top2[i] >= top2.max() - eps)
@@ -134,7 +105,7 @@ def frequency_attack(ct, bigram, p_range=range(5, 25), n_top=4, eps=0.02, verbos
         n0, n1 = PRIMITIVE_ROWS[ri]
         x = (n0 * C0 + n1 * C1) % 26
         counts = np.bincount(colidx.get(P, (j % P) * 26) + x, minlength=P * 26).reshape(P, 26)
-        w = (counts @ SL).argmax(axis=1)                  # best Vigenere shift of each column
+        w = (counts @ SL).argmax(axis=1)                 
         return (x - w[j % P]) % 26, w
 
     best = None
@@ -144,7 +115,7 @@ def frequency_attack(ct, bigram, p_range=range(5, 25), n_top=4, eps=0.02, verbos
         (a0, a1), (b0, b1) = PRIMITIVE_ROWS[ra], PRIMITIVE_ROWS[rb]
         det = (a0 * b1 - a1 * b0) % 26
         if gcd(det, 26) != 1:
-            continue                                       # rows must form an invertible matrix
+            continue                                       
         pe, we = solve_stream(ra, P_star)
         po, wo = solve_stream(rb, P_star)
         txt = np.empty(2 * B, dtype=np.int64)
@@ -174,8 +145,6 @@ def frequency_attack(ct, bigram, p_range=range(5, 25), n_top=4, eps=0.02, verbos
         print("    plaintext start:", _letters(txt[:80]), "...")
     return to_str(best[1]), P_star, info
 
-
-# ====================================================================== ATTACK B
 def _det(m):
     return (m[0][0] * m[1][1] - m[0][1] * m[1][0]) % M
 
@@ -218,7 +187,7 @@ def known_plaintext_attack(ct, crib, p_range=range(5, 31), verbose=False):
             if gcd(_det(cand), 26) != 1:
                 continue
             ca = np.array(cand)
-            if np.all((dp @ ca.T) % 26 == dc):             # must explain every known difference
+            if np.all((dp @ ca.T) % 26 == dc):            
                 Mp = ca
                 if verbose:
                     print(f"    P = {P:>2}: {nd} differences; using differences #{i1},#{i2}:")
@@ -254,7 +223,6 @@ def known_plaintext_attack(ct, crib, p_range=range(5, 31), verbose=False):
     return to_str(flat), P, {"time": time.time() - t0, "period_blocks": P}
 
 
-# ====================================================================== demo
 SAMPLE = """Network security protects the confidentiality integrity and availability of information as it
 moves between computers. A firewall inspects incoming and outgoing traffic and blocks connections that
 break the rules set by the administrator. Encryption turns readable data into unreadable ciphertext so
